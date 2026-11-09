@@ -17,6 +17,10 @@ Zippez le dossier `hapipay/` et installez-le depuis Modules → Gestionnaire de 
 
 HapiPay encaisse des montants entiers : FCFA, ariary et francs congolais conviennent ; en euros ou en dollars, arrondissez vos prix.
 
+## Essais
+
+Testé de bout en bout avec PrestaShop 8.2.8 sur une boutique locale, en mode test : paiement, webhook signé, faux webhook refusé, montant différent laissé en attente avec une note, confirmation au retour du client sans webhook, retour avec une fausse clé ignoré. PrestaShop 9 utilise la même interface de paiement, mais n'a pas encore été essayé.
+
 ## Tests
 
 `php tests/run.php` vérifie les signatures. Avec `HAPIPAY_API_URL` et `HAPIPAY_API_KEY` (clé de test), il essaie aussi l'API réelle.
