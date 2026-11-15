@@ -55,7 +55,7 @@ class HapiPayWebhookModuleFrontController extends ModuleFrontController
                 $this->module->note($order, 'HapiPay : l\'opérateur n\'a pas répondu clairement. Le paiement est à vérifier dans votre espace HapiPay avant d\'expédier.');
                 break;
             case 'remboursement.reussi':
-                $this->module->note($order, 'HapiPay : remboursement de ' . (int) ($data['montant'] ?? 0) . ' ' . ($data['devise'] ?? '') . ' effectué par l\'opérateur.');
+                $this->module->note($order, 'HapiPay : remboursement de ' . HapiPayApi::formatAmount($data['montant'] ?? 0, $data['devise'] ?? '') . ' effectué par l\'opérateur.');
                 break;
         }
 

@@ -15,7 +15,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-define('HAPIPAY_PS_VERSION', '0.1.0');
+define('HAPIPAY_PS_VERSION', '0.1.1');
 
 require_once __DIR__ . '/classes/HapiPayApi.php';
 
@@ -49,7 +49,8 @@ class HapiPay extends PaymentModule
         return parent::install()
             && $this->registerHook('paymentOptions')
             && $this->installOrderState()
-            && Configuration::updateValue('HAPIPAY_TITLE', 'Mobile money ou carte bancaire');
+            && Configuration::updateValue('HAPIPAY_TITLE', 'Mobile money ou carte bancaire')
+            && Configuration::updateValue('HAPIPAY_API_URL', HapiPayApi::DEFAULT_URL);
     }
 
     public function uninstall()
@@ -97,7 +98,8 @@ class HapiPay extends PaymentModule
 
     public function hookPaymentOptions($params)
     {
-        if (!$this->active || !Configuration::get('HAPIPAY_API_KEY') || !Configuration::get('HAPIPAY_API_URL')) {
+        // Adresse de l'API vide : celle de production (HapiPayApi::DEFAULT_URL).
+        if (!$this->active || !Configuration::get('HAPIPAY_API_KEY')) {
             return [];
         }
 
@@ -209,8 +211,8 @@ class HapiPay extends PaymentModule
             'description' => 'L\'argent de vos ventes arrive directement sur votre propre compte opérateur : HapiPay ne le touche jamais, et ne prend aucune commission.',
             'input' => [
                 ['type' => 'text', 'label' => 'Nom affiché à la caisse', 'name' => 'HAPIPAY_TITLE'],
-                ['type' => 'text', 'label' => 'Adresse de l\'API', 'name' => 'HAPIPAY_API_URL', 'placeholder' => 'https://…/api/v1',
-                    'desc' => 'Indiquée en tête de la documentation, dans votre espace HapiPay. Elle se termine par /api/v1.'],
+                ['type' => 'text', 'label' => 'Adresse de l\'API', 'name' => 'HAPIPAY_API_URL', 'placeholder' => HapiPayApi::DEFAULT_URL,
+                    'desc' => 'Laissez ' . HapiPayApi::DEFAULT_URL . ', sauf indication contraire de HapiPay. Elle doit être exactement celle-ci, en HTTPS : une adresse redirigée est refusée.'],
                 ['type' => 'password', 'label' => 'Clé d\'API', 'name' => 'HAPIPAY_API_KEY',
                     'desc' => ($hasKey ? 'Une clé est enregistrée : laissez vide pour la garder. ' : '') . 'Créée dans votre espace HapiPay, menu Développeurs → Clés d\'API. Une clé hpc_test_… simule les paiements ; une clé hpc_… encaisse pour de vrai.'],
                 ['type' => 'password', 'label' => 'Secret du webhook', 'name' => 'HAPIPAY_WEBHOOK_SECRET',
@@ -228,7 +230,7 @@ class HapiPay extends PaymentModule
         $helper->default_form_language = (int) $this->context->language->id;
         $helper->fields_value = [
             'HAPIPAY_TITLE' => Configuration::get('HAPIPAY_TITLE'),
-            'HAPIPAY_API_URL' => Configuration::get('HAPIPAY_API_URL'),
+            'HAPIPAY_API_URL' => Configuration::get('HAPIPAY_API_URL') ?: HapiPayApi::DEFAULT_URL,
             'HAPIPAY_API_KEY' => '',
             'HAPIPAY_WEBHOOK_SECRET' => '',
         ];

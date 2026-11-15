@@ -11,6 +11,9 @@ if (!defined('_PS_VERSION_') && !defined('HAPIPAY_TESTS')) {
 
 class HapiPayApi
 {
+    /** Adresse de l'API de production, utilisée quand le réglage est vide. */
+    const DEFAULT_URL = 'https://pay.scigroup.td/api/v1';
+
     /** @var string */
     private $baseUrl;
 
@@ -19,7 +22,8 @@ class HapiPayApi
 
     public function __construct($baseUrl, $apiKey)
     {
-        $this->baseUrl = rtrim((string) $baseUrl, '/');
+        $baseUrl = trim((string) $baseUrl);
+        $this->baseUrl = rtrim($baseUrl !== '' ? $baseUrl : self::DEFAULT_URL, '/');
         $this->apiKey = (string) $apiKey;
     }
 
@@ -27,6 +31,17 @@ class HapiPayApi
     public function isTest()
     {
         return strpos($this->apiKey, 'hpc_test_') === 0;
+    }
+
+    /**
+     * Montant HapiPay écrit pour une personne : « 25 000 FCFA » pour les francs
+     * CFA (XAF et XOF), le code ISO pour les autres devises (« 5 000 MGA »).
+     */
+    public static function formatAmount($amount, $currency)
+    {
+        $currency = strtoupper((string) $currency);
+
+        return number_format((int) $amount, 0, ',', "\u{202F}") . ' ' . (in_array($currency, ['XAF', 'XOF'], true) ? 'FCFA' : $currency);
     }
 
     /** @return array{ok: bool, status: int, data: array, message: string} */
@@ -45,7 +60,7 @@ class HapiPayApi
         return $this->request('GET', '/plateforme');
     }
 
-    private function request($method, $path, array $body = null)
+    private function request($method, $path, ?array $body = null)
     {
         if ($this->baseUrl === '' || $this->apiKey === '') {
             return ['ok' => false, 'status' => 0, 'data' => [], 'message' => 'HapiPay n\'est pas configuré : adresse de l\'API et clé requises.'];
@@ -63,6 +78,9 @@ class HapiPayApi
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 20,
+            // Jamais de redirection suivie : la clé et le corps ne vont pas
+            // ailleurs que là où ils ont été envoyés.
+            CURLOPT_FOLLOWLOCATION => false,
         ]);
         if ($body !== null) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
@@ -81,6 +99,10 @@ class HapiPayApi
         $json = json_decode($raw, true);
         $json = is_array($json) ? $json : [];
         $ok = $status >= 200 && $status < 300;
+
+        if ($status >= 300 && $status < 400) {
+            return ['ok' => false, 'status' => $status, 'data' => [], 'message' => 'HapiPay a répondu par une redirection (' . $status . ') : vérifiez l\'adresse de l\'API, en HTTPS, par exemple ' . self::DEFAULT_URL . '.'];
+        }
 
         return [
             'ok' => $ok,

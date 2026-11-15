@@ -13,7 +13,7 @@ Aucun secret dans ce dépôt : chaque commerçant saisit sa propre clé d'API et
 
 ## Installation
 
-Zippez le dossier `hapipay/` et installez-le depuis Modules → Gestionnaire de modules → Installer un module. Dans la configuration du module : adresse de l'API, clé d'API (`hpc_test_…` pour les essais), secret du webhook. L'adresse du webhook à déclarer dans l'espace HapiPay est indiquée sur la même page.
+Zippez le dossier `hapipay/` et installez-le depuis Modules → Gestionnaire de modules → Installer un module. Dans la configuration du module : adresse de l'API (par défaut `https://pay.scigroup.td/api/v1`, sans redirection), clé d'API (`hpc_test_…` pour les essais), secret du webhook. L'adresse du webhook à déclarer dans l'espace HapiPay est indiquée sur la même page.
 
 HapiPay encaisse des montants entiers : FCFA, ariary et francs congolais conviennent ; en euros ou en dollars, arrondissez vos prix.
 
@@ -24,6 +24,11 @@ Testé de bout en bout avec PrestaShop 8.2.8 sur une boutique locale, en mode te
 ## Tests
 
 `php tests/run.php` vérifie les signatures. Avec `HAPIPAY_API_URL` et `HAPIPAY_API_KEY` (clé de test), il essaie aussi l'API réelle.
+
+## Versions
+
+- **0.1.1** : adresse de l'API de production proposée par défaut (`https://pay.scigroup.td/api/v1`, un réglage vide l'utilise) ; une redirection de l'API n'est jamais suivie et est signalée avec l'adresse à indiquer ; montants des notes de commande écrits comme sur HapiPay (FCFA pour XAF et XOF).
+- **0.1.0** : première version.
 
 ## Licence
 
