@@ -27,6 +27,17 @@ class HapiPayApi
         $this->apiKey = (string) $apiKey;
     }
 
+    /**
+     * Adresse d'une page du site HapiPay (inscription, espace du marchand),
+     * déduite de l'adresse de l'API : elle suit l'instance configurée.
+     */
+    public function siteUrl($path = '')
+    {
+        $root = (string) preg_replace('#/api/v\d+$#', '', $this->baseUrl);
+
+        return $path === '' ? $root : $root . '/' . ltrim((string) $path, '/');
+    }
+
     /** Clé de test (hpc_test_…) : tous les paiements sont simulés. */
     public function isTest()
     {

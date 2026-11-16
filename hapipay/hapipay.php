@@ -15,7 +15,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-define('HAPIPAY_PS_VERSION', '0.1.1');
+define('HAPIPAY_PS_VERSION', '0.1.2');
 
 require_once __DIR__ . '/classes/HapiPayApi.php';
 
@@ -108,7 +108,7 @@ class HapiPay extends PaymentModule
             ->setCallToActionText((string) Configuration::get('HAPIPAY_TITLE') ?: 'HapiPay')
             ->setAction($this->context->link->getModuleLink($this->name, 'redirect', [], true))
             ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_ . $this->name . '/views/img/hapipay.svg'))
-            ->setAdditionalInformation('<p>Payez en toute sécurité avec Airtel Money, Orange Money, MVola, votre carte bancaire ou PayPal, sur la page de paiement HapiPay.</p>');
+            ->setAdditionalInformation('<p>Payez par Airtel Money, Orange Money, MVola, carte bancaire ou PayPal, sur la page de paiement HapiPay.</p>');
 
         return [$option];
     }
@@ -198,7 +198,20 @@ class HapiPay extends PaymentModule
                 : $this->displayError('La clé n\'a pas pu être vérifiée : ' . $who['message']);
         }
 
-        return $output . $this->renderForm();
+        return $output . $this->accountLinks() . $this->renderForm();
+    }
+
+    /** En tête de la configuration : où créer son compte, où trouver sa clé. */
+    private function accountLinks()
+    {
+        $api = $this->api();
+        $register = htmlspecialchars($api->siteUrl('portail/register'), ENT_QUOTES, 'UTF-8');
+        $portal = htmlspecialchars($api->siteUrl('portail'), ENT_QUOTES, 'UTF-8');
+        $host = htmlspecialchars((string) parse_url($api->siteUrl(), PHP_URL_HOST), ENT_QUOTES, 'UTF-8');
+
+        return '<div class="alert alert-info"><p><strong>Pas encore de compte HapiPay ?</strong> '
+            . '<a href="' . $register . '" target="_blank" rel="noopener">Créez-le sur ' . $host . '</a> : l\'environnement de test est gratuit et illimité. '
+            . 'Déjà inscrit ? <a href="' . $portal . '" target="_blank" rel="noopener">Ouvrir mon espace HapiPay</a> : clés d\'API et webhooks se trouvent dans le menu Développeurs.</p></div>';
     }
 
     private function renderForm()

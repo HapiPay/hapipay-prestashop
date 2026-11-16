@@ -34,6 +34,8 @@ $check('les autres devises gardent leur code', HapiPayApi::formatAmount(5000, 'M
 echo "\nAdresse de l'API\n";
 $baseUrl = new ReflectionProperty(HapiPayApi::class, 'baseUrl');
 $check('réglage vide : adresse de production', $baseUrl->getValue(new HapiPayApi('', 'hpc_test_x')) === HapiPayApi::DEFAULT_URL);
+$check('site déduit de l\'API de production', (new HapiPayApi('', 'k'))->siteUrl('portail/register') === 'https://pay.scigroup.td/portail/register');
+$check('site d\'une autre instance', (new HapiPayApi('https://exemple.test/api/v1/', 'k'))->siteUrl('/portail') === 'https://exemple.test/portail');
 $check('barre finale retirée', $baseUrl->getValue(new HapiPayApi(' https://exemple.test/api/v1/ ', 'hpc_test_x')) === 'https://exemple.test/api/v1');
 
 $url = getenv('HAPIPAY_API_URL');
