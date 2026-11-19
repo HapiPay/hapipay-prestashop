@@ -1,10 +1,10 @@
 <?php
 /**
  * php tests/run.php — sans PrestaShop.
- * Avec HAPIPAY_API_URL et HAPIPAY_API_KEY (clé de test) : essai réel contre une instance HapiPay.
+ * Avec HAPIDITPAY_API_URL et HAPIDITPAY_API_KEY (clé de test) : essai réel contre une instance HapiditPay.
  */
-define('HAPIPAY_TESTS', true);
-require dirname(__DIR__) . '/hapipay/classes/HapiPayApi.php';
+define('HAPIDITPAY_TESTS', true);
+require dirname(__DIR__) . '/hapiditpay/classes/HapiditPayApi.php';
 
 $failures = 0;
 $check = function ($label, $ok) use (&$failures) {
@@ -17,36 +17,86 @@ $secret = 'whsec_essai';
 $body = '{"evenement":"paiement.reussi","data":{"reference":"ps-12"}}';
 $t = time();
 $good = hash_hmac('sha256', $t . '.' . $body, $secret);
-$check('signature valide acceptée', HapiPayApi::validSignature("t=$t,v1=$good", $body, $secret));
-$check('mauvais secret refusé', !HapiPayApi::validSignature("t=$t,v1=$good", $body, 'autre'));
-$check('corps modifié refusé', !HapiPayApi::validSignature("t=$t,v1=$good", $body . ' ', $secret));
+$check('signature valide acceptée', HapiditPayApi::validSignature("t=$t,v1=$good", $body, $secret));
+$check('mauvais secret refusé', !HapiditPayApi::validSignature("t=$t,v1=$good", $body, 'autre'));
+$check('corps modifié refusé', !HapiditPayApi::validSignature("t=$t,v1=$good", $body . ' ', $secret));
 $old = $t - 600;
-$check('horodatage trop ancien refusé', !HapiPayApi::validSignature("t=$old,v1=" . hash_hmac('sha256', $old . '.' . $body, $secret), $body, $secret));
-$check('deux v1 après un changement de secret : l\'un suffit', HapiPayApi::validSignature("t=$t,v1=" . hash_hmac('sha256', $t . '.' . $body, 'nouveau') . ",v1=$good", $body, $secret));
-$check('en-tête vide refusé', !HapiPayApi::validSignature('', $body, $secret));
-$check('secret non configuré refusé', !HapiPayApi::validSignature("t=$t,v1=$good", $body, ''));
+$check('horodatage trop ancien refusé', !HapiditPayApi::validSignature("t=$old,v1=" . hash_hmac('sha256', $old . '.' . $body, $secret), $body, $secret));
+$check('deux v1 après un changement de secret : l\'un suffit', HapiditPayApi::validSignature("t=$t,v1=" . hash_hmac('sha256', $t . '.' . $body, 'nouveau') . ",v1=$good", $body, $secret));
+$check('en-tête vide refusé', !HapiditPayApi::validSignature('', $body, $secret));
+$check('secret non configuré refusé', !HapiditPayApi::validSignature("t=$t,v1=$good", $body, ''));
 
 echo "\nMontants écrits pour une personne (FCFA pour XAF et XOF)\n";
-$check('XAF écrit FCFA', HapiPayApi::formatAmount(25000, 'XAF') === "25\u{202F}000 FCFA");
-$check('XOF écrit FCFA', HapiPayApi::formatAmount(1500, 'xof') === "1\u{202F}500 FCFA");
-$check('les autres devises gardent leur code', HapiPayApi::formatAmount(5000, 'MGA') === "5\u{202F}000 MGA");
+$check('XAF écrit FCFA', HapiditPayApi::formatAmount(25000, 'XAF') === "25\u{202F}000 FCFA");
+$check('XOF écrit FCFA', HapiditPayApi::formatAmount(1500, 'xof') === "1\u{202F}500 FCFA");
+$check('les autres devises gardent leur code', HapiditPayApi::formatAmount(5000, 'MGA') === "5\u{202F}000 MGA");
 
 echo "\nAdresse de l'API\n";
-$baseUrl = new ReflectionProperty(HapiPayApi::class, 'baseUrl');
-$check('réglage vide : adresse de production', $baseUrl->getValue(new HapiPayApi('', 'hpc_test_x')) === HapiPayApi::DEFAULT_URL);
-$check('site déduit de l\'API de production', (new HapiPayApi('', 'k'))->siteUrl('portail/register') === 'https://pay.scigroup.td/portail/register');
-$check('site d\'une autre instance', (new HapiPayApi('https://exemple.test/api/v1/', 'k'))->siteUrl('/portail') === 'https://exemple.test/portail');
-$check('barre finale retirée', $baseUrl->getValue(new HapiPayApi(' https://exemple.test/api/v1/ ', 'hpc_test_x')) === 'https://exemple.test/api/v1');
+$baseUrl = new ReflectionProperty(HapiditPayApi::class, 'baseUrl');
+$check('réglage vide : adresse de production', $baseUrl->getValue(new HapiditPayApi('', 'hdp_test_x')) === HapiditPayApi::DEFAULT_URL);
+$check('site déduit de l\'API de production', (new HapiditPayApi('', 'k'))->siteUrl('portail/register') === 'https://hapiditpay.com/portail/register');
+$check('site d\'une autre instance', (new HapiditPayApi('https://exemple.test/api/v1/', 'k'))->siteUrl('/portail') === 'https://exemple.test/portail');
+$check('barre finale retirée', $baseUrl->getValue(new HapiditPayApi(' https://exemple.test/api/v1/ ', 'hdp_test_x')) === 'https://exemple.test/api/v1');
 
-$url = getenv('HAPIPAY_API_URL');
-$key = getenv('HAPIPAY_API_KEY');
+echo "\nReprise du module sous son ancien nom\n";
+// Base factice : réglages en mémoire, requêtes notées.
+define('_PS_VERSION_', 'test');
+define('_DB_PREFIX_', 'ps_');
+function pSQL($s) { return addslashes((string) $s); }
+class Db
+{
+    public static $config = ['HAPIPAY_API_KEY' => 'cle', 'HAPIPAY_WEBHOOK_SECRET' => 'whsec', 'HAPIPAY_API_URL' => 'https://pay.scigroup.td/api/v1', 'HAPIPAY_OS_WAITING' => '14'];
+    public static $sql = [];
+    public static function getInstance() { return new self(); }
+    public function getValue($q)
+    {
+        preg_match("/`name` = '([A-Z_]+)'/", $q, $m);
+        $exists = array_key_exists($m[1], self::$config);
+        return strpos($q, "`value` <> ''") !== false ? ($exists && self::$config[$m[1]] !== '' ? 1 : 0) : ($exists ? 1 : 0);
+    }
+    public function update($table, $data, $where)
+    {
+        self::$sql[] = "UPDATE $table " . json_encode($data) . " WHERE $where";
+        if ($table === 'configuration' && isset($data['name']) && preg_match("/`name` = '([A-Z_]+)'/", $where, $m)) {
+            self::$config[$data['name']] = self::$config[$m[1]];
+            unset(self::$config[$m[1]]);
+        }
+        if ($table === 'configuration' && isset($data['value']) && rtrim(self::$config['HAPIDITPAY_API_URL'] ?? '', '/') !== '' && strpos($where, rtrim(self::$config['HAPIDITPAY_API_URL'], '/')) !== false) {
+            self::$config['HAPIDITPAY_API_URL'] = $data['value'];
+        }
+        return true;
+    }
+    public function delete($table, $where) { self::$sql[] = "DELETE $table WHERE $where"; return true; }
+    public function execute($q) { self::$sql[] = $q; return true; }
+}
+class Configuration { public static function loadConfiguration() {} }
+class Module
+{
+    public static $uninstalled = false;
+    public static function isInstalled($name) { return $name === 'hapipay'; }
+    public static function getInstanceByName($name) { return new self(); }
+    public function uninstall() { self::$uninstalled = true; return true; }
+}
+require dirname(__DIR__) . '/hapiditpay/classes/HapiditPayUpgrade.php';
+$hadWebhook = HapiditPayUpgrade::run('hapiditpay');
+$check('réglages renommés (clé, secret, état de commande)', (Db::$config['HAPIDITPAY_API_KEY'] ?? '') === 'cle' && (Db::$config['HAPIDITPAY_WEBHOOK_SECRET'] ?? '') === 'whsec' && (Db::$config['HAPIDITPAY_OS_WAITING'] ?? '') === '14');
+$check('anciens réglages effacés', !array_filter(array_keys(Db::$config), fn ($k) => strpos($k, 'HAPIPAY_') === 0));
+$check('ancienne adresse de l\'API remplacée', Db::$config['HAPIDITPAY_API_URL'] === HapiditPayApi::DEFAULT_URL);
+$sql = implode("\n", Db::$sql);
+$check('commandes et état de commande rattachés au nouveau module', strpos($sql, "UPDATE orders {\"module\":\"hapiditpay\"} WHERE `module` = 'hapipay'") !== false && strpos($sql, "UPDATE order_state {\"module_name\":\"hapiditpay\"}") !== false);
+$check('notes de création des pages reprises', strpos($sql, "LIKE 'HapiPay : page de paiement %'") !== false);
+$check('ancien module désinstallé', Module::$uninstalled);
+$check('webhook à redéclarer signalé', $hadWebhook === true);
+
+$url = getenv('HAPIDITPAY_API_URL');
+$key = getenv('HAPIDITPAY_API_KEY');
 if ($url && $key) {
     echo "\nAPI réelle : $url\n";
-    $api = new HapiPayApi($url, $key);
+    $api = new HapiditPayApi($url, $key);
     $check('clé de test reconnue comme telle', $api->isTest());
     $who = $api->whoami();
     $check('la clé ouvre le compte (' . ($who['ok'] ? $who['data']['name'] : $who['message']) . ')', $who['ok']);
-    $link = $api->createLink(['reference' => 'ps-42', 'titre' => 'Commande de la boutique', 'montant' => 15000, 'devise' => 'XAF', 'usage_unique' => true, 'url_retour' => 'http://boutique.test/module/hapipay/validation?id_cart=42', 'langue' => 'fr']);
+    $link = $api->createLink(['reference' => 'ps-42', 'titre' => 'Commande de la boutique', 'montant' => 15000, 'devise' => 'XAF', 'usage_unique' => true, 'url_retour' => 'http://boutique.test/module/hapiditpay/validation?id_cart=42', 'langue' => 'fr']);
     $check('page de paiement créée' . ($link['ok'] ? ' : ' . $link['data']['url'] : ' : ' . $link['message']), $link['ok']);
     if ($link['ok']) {
         $state = $api->linkState($link['data']['code']);
@@ -54,7 +104,7 @@ if ($url && $key) {
     }
     $bad = $api->createLink(['reference' => 'ps-43', 'montant' => 100, 'devise' => 'JPY', 'usage_unique' => true]);
     $check('une devise refusée remonte une erreur claire', !$bad['ok'] && $bad['status'] === 422);
-    $wrong = (new HapiPayApi($url, 'hpc_test_mauvaise'))->whoami();
+    $wrong = (new HapiditPayApi($url, 'hdp_test_mauvaise'))->whoami();
     $check('une clé inconnue est refusée (401)', !$wrong['ok'] && $wrong['status'] === 401);
 }
 
