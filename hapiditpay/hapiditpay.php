@@ -15,10 +15,9 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-define('HAPIDITPAY_PS_VERSION', '0.2.0');
+define('HAPIDITPAY_PS_VERSION', '0.2.1');
 
 require_once __DIR__ . '/classes/HapiditPayApi.php';
-require_once __DIR__ . '/classes/HapiditPayUpgrade.php';
 
 use PrestaShop\PrestaShop\Core\Payment\PaymentOption;
 
@@ -51,11 +50,6 @@ class HapiditPay extends PaymentModule
             return false;
         }
 
-        // Module déjà utilisé sous son ancien nom : réglages, état et commandes repris.
-        if (HapiditPayUpgrade::run($this->name)) {
-            Configuration::updateValue('HAPIDITPAY_WEBHOOK_MOVED', 1);
-        }
-
         return $this->registerHook('paymentOptions')
             && $this->installOrderState()
             && (Configuration::get('HAPIDITPAY_TITLE') !== false || Configuration::updateValue('HAPIDITPAY_TITLE', 'Mobile money ou carte bancaire'))
@@ -67,7 +61,6 @@ class HapiditPay extends PaymentModule
         foreach (self::CONFIG as $key) {
             Configuration::deleteByName($key);
         }
-        Configuration::deleteByName('HAPIDITPAY_WEBHOOK_MOVED');
 
         // L'état de commande est gardé : des commandes peuvent l'utiliser.
         return parent::uninstall();
@@ -201,16 +194,11 @@ class HapiditPay extends PaymentModule
                     Configuration::updateValue($secret, trim((string) Tools::getValue($secret)));
                 }
             }
-            Configuration::deleteByName('HAPIDITPAY_WEBHOOK_MOVED');
 
             $who = $this->api()->whoami();
             $output .= $who['ok']
                 ? $this->displayConfirmation('Clé reconnue pour « ' . ($who['data']['name'] ?? '?') . ' », en mode ' . ($this->api()->isTest() ? 'test' : 'production') . '.')
                 : $this->displayError('La clé n\'a pas pu être vérifiée : ' . $who['message']);
-        }
-
-        if (Configuration::get('HAPIDITPAY_WEBHOOK_MOVED')) {
-            $output .= $this->displayWarning('Le module a changé de nom : l\'adresse de son webhook est désormais ' . $this->webhookUrl() . '. Dans votre espace HapiditPay, menu Développeurs → Webhooks, remplacez l\'ancienne adresse par celle-ci (le secret ne change pas), puis enregistrez cette page. D\'ici là, les commandes sont confirmées au retour du client.');
         }
 
         return $output . $this->accountLinks() . $this->renderForm();

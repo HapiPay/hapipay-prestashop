@@ -38,56 +38,6 @@ $check('site déduit de l\'API de production', (new HapiditPayApi('', 'k'))->sit
 $check('site d\'une autre instance', (new HapiditPayApi('https://exemple.test/api/v1/', 'k'))->siteUrl('/portail') === 'https://exemple.test/portail');
 $check('barre finale retirée', $baseUrl->getValue(new HapiditPayApi(' https://exemple.test/api/v1/ ', 'hdp_test_x')) === 'https://exemple.test/api/v1');
 
-echo "\nReprise du module sous son ancien nom\n";
-// Base factice : réglages en mémoire, requêtes notées.
-define('_PS_VERSION_', 'test');
-define('_DB_PREFIX_', 'ps_');
-function pSQL($s) { return addslashes((string) $s); }
-class Db
-{
-    public static $config = ['HAPIPAY_API_KEY' => 'cle', 'HAPIPAY_WEBHOOK_SECRET' => 'whsec', 'HAPIPAY_API_URL' => 'https://pay.scigroup.td/api/v1', 'HAPIPAY_OS_WAITING' => '14'];
-    public static $sql = [];
-    public static function getInstance() { return new self(); }
-    public function getValue($q)
-    {
-        preg_match("/`name` = '([A-Z_]+)'/", $q, $m);
-        $exists = array_key_exists($m[1], self::$config);
-        return strpos($q, "`value` <> ''") !== false ? ($exists && self::$config[$m[1]] !== '' ? 1 : 0) : ($exists ? 1 : 0);
-    }
-    public function update($table, $data, $where)
-    {
-        self::$sql[] = "UPDATE $table " . json_encode($data) . " WHERE $where";
-        if ($table === 'configuration' && isset($data['name']) && preg_match("/`name` = '([A-Z_]+)'/", $where, $m)) {
-            self::$config[$data['name']] = self::$config[$m[1]];
-            unset(self::$config[$m[1]]);
-        }
-        if ($table === 'configuration' && isset($data['value']) && rtrim(self::$config['HAPIDITPAY_API_URL'] ?? '', '/') !== '' && strpos($where, rtrim(self::$config['HAPIDITPAY_API_URL'], '/')) !== false) {
-            self::$config['HAPIDITPAY_API_URL'] = $data['value'];
-        }
-        return true;
-    }
-    public function delete($table, $where) { self::$sql[] = "DELETE $table WHERE $where"; return true; }
-    public function execute($q) { self::$sql[] = $q; return true; }
-}
-class Configuration { public static function loadConfiguration() {} }
-class Module
-{
-    public static $uninstalled = false;
-    public static function isInstalled($name) { return $name === 'hapipay'; }
-    public static function getInstanceByName($name) { return new self(); }
-    public function uninstall() { self::$uninstalled = true; return true; }
-}
-require dirname(__DIR__) . '/hapiditpay/classes/HapiditPayUpgrade.php';
-$hadWebhook = HapiditPayUpgrade::run('hapiditpay');
-$check('réglages renommés (clé, secret, état de commande)', (Db::$config['HAPIDITPAY_API_KEY'] ?? '') === 'cle' && (Db::$config['HAPIDITPAY_WEBHOOK_SECRET'] ?? '') === 'whsec' && (Db::$config['HAPIDITPAY_OS_WAITING'] ?? '') === '14');
-$check('anciens réglages effacés', !array_filter(array_keys(Db::$config), fn ($k) => strpos($k, 'HAPIPAY_') === 0));
-$check('ancienne adresse de l\'API remplacée', Db::$config['HAPIDITPAY_API_URL'] === HapiditPayApi::DEFAULT_URL);
-$sql = implode("\n", Db::$sql);
-$check('commandes et état de commande rattachés au nouveau module', strpos($sql, "UPDATE orders {\"module\":\"hapiditpay\"} WHERE `module` = 'hapipay'") !== false && strpos($sql, "UPDATE order_state {\"module_name\":\"hapiditpay\"}") !== false);
-$check('notes de création des pages reprises', strpos($sql, "LIKE 'HapiPay : page de paiement %'") !== false);
-$check('ancien module désinstallé', Module::$uninstalled);
-$check('webhook à redéclarer signalé', $hadWebhook === true);
-
 $url = getenv('HAPIDITPAY_API_URL');
 $key = getenv('HAPIDITPAY_API_KEY');
 if ($url && $key) {
